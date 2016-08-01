@@ -37,7 +37,7 @@ class Xmeans:
             beta = np.linalg.norm(c1.center - c2.center) / np.sqrt(np.linalg.det(c1.cov) + np.linalg.det(c2.cov))
             #stats.norm.cdf 正規分布の下側確率
             alpha = 0.5 / stats.norm.cdf(beta)
-            
+            bic = -2 * ()
             
             
     #各クラスタ毎の情報を扱うクラス
