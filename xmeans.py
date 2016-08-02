@@ -9,6 +9,7 @@ https://gist.github.com/yasaichi/254a060eff56a3b3b858
 import numpy as np
 from scipy import stats
 from sklearn.cluster import KMeans
+import sys
 
 class XMeans:
     def __init__(self, k_init = 2, **k_means_args):
@@ -42,10 +43,18 @@ class XMeans:
             
             k_means = KMeans(2,**self.k_means_args).fit(cluster.data)
             c1,c2 = self.Cluster.build(cluster.data,k_means,cluster.index)
-            beta = np.linalg.norm(c1.center - c2.center) / np.sqrt(np.linalg.det(c1.cov) + np.linalg.det(c2.cov))
+            try:
+                if np.array(c1.cov).shape == ():
+                    beta = np.linalg.norm(c1.center - c2.center) / np.sqrt(c1.cov + c2.cov)                
+                else:
+                    beta = np.linalg.norm(c1.center - c2.center) / np.sqrt(np.linalg.det(c1.cov) + np.linalg.det(c2.cov))
+            except:
+                print(np.array(c1.cov))
+                print(np.array(c1.cov).shape)
+                print(np.array(c1.cov).shape[0])
             #stats.norm.cdf 正規分布の下側確率
             alpha = 0.5 / stats.norm.cdf(beta)
- 
+            
             bic = -2 * (cluster.size * np.log(alpha) + c1.log_likelihood() + c2.log_likelihood()) + 2 * cluster.df * np.log(cluster.size)
             
             if bic < cluster.bic():
@@ -62,7 +71,8 @@ class XMeans:
                 index = np.array(range(0,X.shape[0]))
             labels = range(0,k_means.get_params()["n_clusters"])    
 
-            return tuple(cls(X,index,k_means,label) for label in labels)
+            #return tuple(cls(X,index,k_means,label) for label in labels)
+            return [cls(X,index,k_means,label) for label in labels]
         
         def __init__(self,X,index,k_means,label):
             self.data = X[k_means.labels_ == label]
@@ -70,11 +80,31 @@ class XMeans:
             self.size = self.data.shape[0]
             self.df = self.data.shape[1] * (self.data.shape[1] + 3) / 2
             self.center = k_means.cluster_centers_[label]
-            self.cov = np.cov(self.data.T)
+            if len(self.data) == 1:
+                self.cov = 0
+            else:
+                self.cov = np.cov(self.data.T)
         
         #尤度関数の数値計算
         def log_likelihood(self,alpha=1):
-            return sum(stats.multivariate_normal.logpdf(alpha * x,self.center,self.cov) for x in self.data)
+            result = 1
+            try:
+                if len(self.data) == 1:
+                    result = -9999
+                elif self.cov.shape == ():
+                    if self.cov == 0:
+                        result = -9999
+                    else:
+                        result = -1*np.log(np.pi * self.cov)/2.0 
+                else:
+                    result = sum(stats.multivariate_normal.logpdf(alpha * x,self.center,self.cov) for x in self.data)
+            except Exception as e:
+                print('=== エラー内容 ===')
+                print('type:' + str(type(e)))
+                print('args:' + str(e.args))
+                print(self.cov.dtype)
+                sys.exit()
+            return result
             
         def bic(self):
             return -2 * self.log_likelihood() + self.df * np.log(self.size)
@@ -113,3 +143,9 @@ if __name__ == "__main__":
     plt.ylim(0, 3)
     plt.title("改良x-means法の実行結果  参考: 石岡(2000)")
     plt.show()
+    
+    
+    
+    
+    
+    
